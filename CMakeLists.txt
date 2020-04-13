@@ -21,6 +21,7 @@ include(${Slicer_USE_FILE})
 # Extension modules
 add_subdirectory(Mesher)
 add_subdirectory(Mesher2)
+add_subdirectory(MeshModify)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
