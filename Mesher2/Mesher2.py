@@ -225,18 +225,25 @@ class Mesher2Logic(ScriptedLoadableModuleLogic):
 
     inputModel1 = inputModel1Node.GetMesh()  # we should apply transform to World
     inputModel2 = inputModel2Node.GetMesh()  # we should apply transform to World
-    inputCurve1 = inputCurveNode1.GetCurvePointsWorld()
-    inputCurve2 = inputCurveNode2.GetCurvePointsWorld()
+    inputCurve1 = vtk.vtkPoints()
+    inputCurve1.DeepCopy(inputCurveNode1.GetCurvePointsWorld())
+    inputCurve2 = vtk.vtkPoints()
+    inputCurve2.DeepCopy(inputCurveNode2.GetCurvePointsWorld())
+
+    output = vtk.vtkPolyData()
+    outputModelNode.SetAndObservePolyData(output)
 
     normal1 = [0,0,0]
-    normal2 = [0,0,0]
     origin1 = [0,0,0]
-    inputPlane1.GetOriginWorld(origin1)
+    inputPlaneNode1.GetNormalWorld(normal1)
+    inputPlaneNode1.GetOriginWorld(origin1)
+    normal2 = [0,0,0]
     origin2 = [0,0,0]
-    inputPlane2.GetOriginWorld(origin2)
+    inputPlaneNode2.GetNormalWorld(normal2)
+    inputPlaneNode2.GetOriginWorld(origin2)
     
     vector1 = [0,0,0]
-    vtk.vtkMath.Subtract(origin2, origin1)
+    vtk.vtkMath.Subtract(origin2, origin1, vector1)
     if (vtk.vtkMath.Dot(vector1, normal1) < 0):
       vtk.vtkMath.MultiplyScalar(normal1, -1)
     if (vtk.vtkMath.Dot(vector1, normal2) > 0):
@@ -246,59 +253,74 @@ class Mesher2Logic(ScriptedLoadableModuleLogic):
     plane1.SetNormal(normal1)
     plane1.SetOrigin(origin1)
     
-    cutter = vtk.vtkCutter()
-    cutter.SetInputData(inputModel1)
-    cutter.SetCutFunction(plane1)
-    cutter.Update()
-    cutModel1 = cutter.GetOutput()
-    
     plane2 = vtk.vtkPlane()
     plane2.SetNormal(normal2)
     plane2.SetOrigin(origin2)
-    
-    cutter.SetInputData(inputModel2)
-    cutter.SetCutFunction(plane2)
-    cutter.Update()
-    cutModel2 = cutter.GetOutput()
-    
-    inputCurve1 = self.combineCurves(inputCurve1, inputCurve2, inputPlaneNode1, inputPlaneNode2)
 
-    #TODO
-    line = vtk.vtkIdList()  
+    cutterModel1Plane1 = vtk.vtkClipPolyData()
+    cutterModel1Plane1.SetInputData(inputModel1)
+    cutterModel1Plane1.SetClipFunction(plane1)
+    cutterModel1Plane2 = vtk.vtkClipPolyData()
+    cutterModel1Plane2.SetInputConnection(cutterModel1Plane1.GetOutputPort())
+    cutterModel1Plane2.SetClipFunction(plane2)
+    cutterModel1Plane2.Update()
+    cutModel1 = cutterModel1Plane2.GetOutput()
+
+    cutterModel2Plane1 = vtk.vtkClipPolyData()
+    cutterModel2Plane1.SetInputData(inputModel2)
+    cutterModel2Plane1.SetClipFunction(plane1)
+    cutterModel2Plane2 = vtk.vtkClipPolyData()
+    cutterModel2Plane2.SetInputConnection(cutterModel2Plane1.GetOutputPort())
+    cutterModel2Plane2.SetClipFunction(plane2)
+    cutterModel2Plane2.Update()
+    cutModel2 = cutterModel2Plane2.GetOutput()
+
+    model1Curve1 = inputCurve1
+    model1Curve2 = inputCurve2
+    model2Curve1 = self.projectCurveToSurface(inputCurve1, inputModel1, inputModel2)
+    model2Curve2 = self.projectCurveToSurface(inputCurve2, inputModel1, inputModel2)
+
+    curves = [model1Curve1, model1Curve2, model2Curve1, model2Curve2]
+    for curve in curves:
+      curve.DeepCopy(self.clipCurveWithPlane(curve, plane1))
+      curve.DeepCopy(self.clipCurveWithPlane(curve, plane2))
+
+    inputCurve1 = self.combineCurves(model1Curve1, model1Curve2, cutModel1)
+    inputCurve2 = self.combineCurves(model2Curve1, model2Curve2, cutModel2)
+
+    lines = vtk.vtkCellArray()
+    line = vtk.vtkIdList()
     for i in range(inputCurve1.GetNumberOfPoints()):
       line.InsertNextId(i)
-      
-    lines = vtk.vtkCellArray()
     lines.InsertNextCell(line)
-    
-    output = vtk.vtkPolyData()
-    output.SetPoints(inputCurve1)
-    output.SetLines(lines)
-    outputModelNode.SetAndObservePolyData(output)
-    return
+    p1 = vtk.vtkPolyData()
+    p1.SetPoints(inputCurve1)
+    p1.SetLines(lines)
 
-    locator = vtk.vtkPointLocator()
-    locator.SetDataSet(inputModel1)
-    locator.BuildLocator()
+    lines = vtk.vtkCellArray()
+    line = vtk.vtkIdList()
+    for i in range(inputCurve2.GetNumberOfPoints()):
+      line.InsertNextId(i)
+    lines.InsertNextCell(line)
+    p2 = vtk.vtkPolyData()
+    p2.SetPoints(inputCurve2)
+    p2.SetLines(lines)
 
-    inputCurve2 = vtk.vtkPoints()    
-    inputModel2Points = inputModel2.GetPoints()
-    for i in range(inputCurve1.GetNumberOfPoints()):
-      pointId = locator.FindClosestPoint(inputCurve1.GetPoint(i))
-      inputCurve2.InsertNextPoint(inputModel2Points.GetPoint(pointId))
-
-    inputPatch1 = self.getPatch(inputModel1, inputCurve1)
+    inputPatch1 = self.getPatch(cutModel1, inputCurve1)
     normalFilter = vtk.vtkPolyDataNormals()
     normalFilter.SetInputData(inputPatch1)
     normalFilter.FlipNormalsOn()
     normalFilter.Update()
     inputPatch1 = normalFilter.GetOutput()
-    inputPatch2 = self.getPatch(inputModel2, inputCurve2)
+    inputPatch2 = self.getPatch(cutModel2, inputCurve2)
 
     append = vtk.vtkAppendPolyData()
     append.AddInputData(inputPatch1)
     append.AddInputData(inputPatch2)
     append.Update()
+    outputModelNode.SetAndObservePolyData(append.GetOutput())
+
+    return
     output = self.stitchEdges(append.GetOutput(), inputCurve1, inputCurve2)
 
     normals = vtk.vtkPolyDataNormals()
@@ -308,17 +330,76 @@ class Mesher2Logic(ScriptedLoadableModuleLogic):
     outputModelNode.SetAndObservePolyData(normals.GetOutput())
     logging.info('Processing completed')
 
-  def combineCurves(self, inputCurve1, inputCurve2, inputPlane1, inputPlane2):
-    import numpy as np
-    #curve1Segment = self.getLongestSegment(inputCurve1, inputPlane1, inputPlane2)
-    #curve2Segment = self.getLongestSegment(inputCurve2, inputPlane1, inputPlane2)
-    print(curve1Segment)
-    print(curve2Segment)
-    curve = vtk.vtkPoints()
-    self.appendPoints(curve1Segment, curve, False)
-    self.appendPoints(curve2Segment, curve, True)
-    curve.InsertNextPoint(curve.GetPoint(0))
-    return curve
+  def projectCurveToSurface(self, inputCurve, inputModel1, inputModel2):
+    outputPoints = vtk.vtkPoints()
+    locator = vtk.vtkPointLocator()
+    locator.SetDataSet(inputModel1)
+    locator.BuildLocator()
+    for i in range(inputCurve.GetNumberOfPoints()):
+      pointId = locator.FindClosestPoint(inputCurve.GetPoint(i))
+      outputPoints.InsertNextPoint(inputModel2.GetPoint(pointId))
+    return outputPoints
+
+  def clipCurveWithPlane(self, inputCurve, plane):
+    outputPoints = vtk.vtkPoints()
+    for i in range(inputCurve.GetNumberOfPoints()-1):
+      point0 = inputCurve.GetPoint(i)
+      point1 = inputCurve.GetPoint(i)
+      point0Value = plane.EvaluateFunction(point0)
+      point1Value2 = plane.EvaluateFunction(point1)
+      if point0Value < 0 and point1Value2 < 0:
+        continue
+      elif point0Value >= 0 and point1Value2 >= 0:
+        outputPoints.InsertNextPoint(point0)
+      elif point0Value == 0:
+        outputPoints.InsertNextPoint(point0)
+      elif point0Value >= 0 and point1Value < 0:
+        t = vtk.mutable(0)
+        intersection = [0,0,0]
+        if plane.IntersectWithLine(point0, point1, t, intersection):
+          outputPoints.InsertNextPoint(intersection)
+        else:
+          outputPoints.InsertNextPoint(point0)
+    return outputPoints
+
+  def combineCurves(self, inputCurve1, inputCurve2, inputModel):
+    outputPoints = vtk.vtkPoints()
+    locator = vtk.vtkPointLocator()
+    locator.SetDataSet(inputModel)
+    locator.BuildLocator()
+
+    outputPoints = vtk.vtkPoints()
+    for i in range(inputCurve1.GetNumberOfPoints()):
+      outputPoints.InsertNextPoint(inputCurve1.GetPoint(i))
+
+    point1Id = locator.FindClosestPoint(inputCurve1.GetPoint(inputCurve1.GetNumberOfPoints()-1))
+    point2Id = locator.FindClosestPoint(inputCurve2.GetPoint(inputCurve2.GetNumberOfPoints()-1))
+
+    dijkstra1 = vtk.vtkDijkstraGraphGeodesicPath()
+    dijkstra1.SetInputData(inputModel)
+    dijkstra1.SetStartVertex(point2Id)
+    dijkstra1.SetEndVertex(point1Id)
+    dijkstra1.Update()
+    dijkstraPath1 = dijkstra1.GetOutput()
+    for i in range(dijkstraPath1.GetNumberOfPoints()):
+      outputPoints.InsertNextPoint(dijkstraPath1.GetPoint(i))
+    
+    for i in reversed(range(inputCurve2.GetNumberOfPoints())):
+      outputPoints.InsertNextPoint(inputCurve2.GetPoint(i))
+
+    point1Id = locator.FindClosestPoint(inputCurve2.GetPoint(0))
+    point2Id = locator.FindClosestPoint(inputCurve1.GetPoint(0))
+
+    dijkstra2 = vtk.vtkDijkstraGraphGeodesicPath()
+    dijkstra2.SetInputData(inputModel)
+    dijkstra2.SetStartVertex(point2Id)
+    dijkstra2.SetEndVertex(point1Id)
+    dijkstra2.Update()
+    dijkstraPath2 = dijkstra2.GetOutput()
+    for i in range(dijkstraPath2.GetNumberOfPoints()):
+      outputPoints.InsertNextPoint(dijkstraPath2.GetPoint(i))
+
+    return outputPoints
 
   def appendPoints(self, inputPoints, outputPoints, invert):
     for i in range(inputPoints.GetNumberOfPoints()):
