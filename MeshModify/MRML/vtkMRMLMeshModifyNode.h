@@ -27,13 +27,7 @@
 #include <vtkMRMLNode.h>
 
 // Segmentations includes
-#include "vtkSlicerSegmentationsModuleMRMLExport.h"
-
-#include "vtkOrientedImageData.h"
-
-class vtkMRMLScene;
-class vtkMRMLScalarVolumeNode;
-class vtkMRMLSegmentationNode;
+#include "vtkSlicerMeshModifyModuleMRMLExport.h"
 
 /// \ingroup Segmentations
 /// \brief Parameter set node for the segment editor widget
@@ -43,7 +37,7 @@ class vtkMRMLSegmentationNode;
 /// EffectName.ParameterName. If a parameter is changed, the node Modified event is not emitted,
 /// but the custom EffectParameterModified event that triggers update of the effect options widget only.
 ///
-class VTK_SLICER_SEGMENTATIONS_MODULE_MRML_EXPORT vtkMRMLMeshModifyNode : public vtkMRMLNode
+class VTK_SLICER_MESHMODIFY_MODULE_MRML_EXPORT vtkMRMLMeshModifyNode : public vtkMRMLNode
 {
 public:
   static vtkMRMLMeshModifyNode *New();
@@ -66,9 +60,23 @@ public:
   const char* GetNodeTagName() override { return "MeshModify"; }
 
 public:
+  enum
+  {
+    InputNodeModified,
+  };
 
   vtkGetStringMacro(MethodName);
   vtkSetStringMacro(MethodName); 
+
+  vtkGetMacro(ContinuousUpdate, bool);
+  vtkSetMacro(ContinuousUpdate, bool);
+  vtkBooleanMacro(ContinuousUpdate, bool);
+
+  /// TODO
+  void SetNthInputNode(int n, std::string id);
+
+  /// TODO
+  void SetNthOutputNode(int n, std::string id);
 
 protected:
   vtkMRMLMeshModifyNode();
@@ -76,8 +84,11 @@ protected:
   vtkMRMLMeshModifyNode(const vtkMRMLMeshModifyNode&);
   void operator=(const vtkMRMLMeshModifyNode&);
 
+  void ProcessMRMLEvents(vtkObject* caller, unsigned long eventID, void* callData);
+
   /// Selected segment ID
   char* MethodName;
+  bool ContinuousUpdate;
 };
 
 #endif // __vtkMRMLMeshModifyNode_h

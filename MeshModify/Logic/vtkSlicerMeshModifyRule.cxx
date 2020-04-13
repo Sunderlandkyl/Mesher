@@ -18,89 +18,111 @@
 
 ==============================================================================*/
 
-// Segmentations includes
 #include "vtkSlicerMeshModifyRule.h"
 
 // VTK includes
 #include <vtkObjectFactory.h>
 #include <vtkSmartPointer.h>
 
-// SegmentationCore includes
-#include <vtkSegment.h>
 
 //----------------------------------------------------------------------------
 vtkSlicerMeshModifyRule::vtkSlicerMeshModifyRule()
-  : ReplaceTargetRepresentation(false)
 {
 }
 
 //----------------------------------------------------------------------------
 vtkSlicerMeshModifyRule::~vtkSlicerMeshModifyRule()
 {
-  this->ConversionParameters.clear();
 }
 
 //----------------------------------------------------------------------------
 vtkSlicerMeshModifyRule* vtkSlicerMeshModifyRule::Clone()
 {
   vtkSlicerMeshModifyRule* clone = this->CreateRuleInstance();
-  clone->ConversionParameters = this->ConversionParameters;
   return clone;
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerMeshModifyRule::CreateTargetRepresentation(vtkSegment* segment)
+int vtkSlicerMeshModifyRule::GetNumberOfInputNodes()
 {
-  // Get target representation
-  vtkSmartPointer<vtkDataObject> targetRepresentation = segment->GetRepresentation(
-    this->GetTargetRepresentationName());
+  return this->InputNodeInfo.size();
+}
 
-  // Create an empty target representation if it does not exist, or if we want to replace the target
-  if (!targetRepresentation.GetPointer() || this->ReplaceTargetRepresentation)
+//----------------------------------------------------------------------------
+int vtkSlicerMeshModifyRule::GetNumberOfOutputNodes()
+{
+  return this->OutputNodeInfo.size();
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerMeshModifyRule::GetNthInputNodeName(int n)
+{
+  if (n > this->InputNodeInfo.size())
     {
-    targetRepresentation = vtkSmartPointer<vtkDataObject>::Take(
-      this->ConstructRepresentationObjectByRepresentation(this->GetTargetRepresentationName()));
-    segment->AddRepresentation(this->GetTargetRepresentationName(), targetRepresentation);
+    vtkErrorMacro("Input node " << n << " is out of range!");
+    return "";
     }
-  return true;
+  return this->InputNodeInfo[n].Name;
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerMeshModifyRule::GetRuleConversionParameters(ConversionParameterListType& conversionParameters)
+std::string vtkSlicerMeshModifyRule::GetNthInputNodeDescription(int n)
 {
-  // Copy rule conversion parameters into aggregated path parameters
-  ConversionParameterListType::iterator paramIt;
-  for (paramIt = this->ConversionParameters.begin(); paramIt != this->ConversionParameters.end(); ++paramIt)
+  if (n > this->InputNodeInfo.size())
     {
-    conversionParameters[paramIt->first] = paramIt->second;
+    vtkErrorMacro("Input node " << n << " is out of range!");
+    return "";
     }
+  return this->InputNodeInfo[n].Description;
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerMeshModifyRule::SetConversionParameter(const std::string& name, const std::string& value, const std::string& description/*=""*/)
+std::string vtkSlicerMeshModifyRule::GetNthInputNodeClassName(int n)
 {
-  this->ConversionParameters[name].first = value;
-
-  if (!description.empty())
+  if (n > this->InputNodeInfo.size())
     {
-    this->ConversionParameters[name].second = description;
+    vtkErrorMacro("Input node " << n << " is out of range!");
+    return "";
     }
+  return this->InputNodeInfo[n].ClassName;
 }
 
 //----------------------------------------------------------------------------
-std::string vtkSlicerMeshModifyRule::GetConversionParameter(const std::string& name)
+std::string vtkSlicerMeshModifyRule::GetNthOutputNodeName(int n)
 {
-  return this->ConversionParameters[name].first;
+  if (n > this->OutputNodeInfo.size())
+    {
+    vtkErrorMacro("Output node " << n << " is out of range!");
+    return "";
+    }
+  return this->OutputNodeInfo[n].Name;
 }
 
 //----------------------------------------------------------------------------
-std::string vtkSlicerMeshModifyRule::GetConversionParameterDescription(const std::string& name)
+std::string vtkSlicerMeshModifyRule::GetNthOutputNodeDescription(int n)
 {
-  return this->ConversionParameters[name].second;
+  if (n > this->OutputNodeInfo.size())
+    {
+    vtkErrorMacro("Output node " << n << " is out of range!");
+    return "";
+    }
+  return this->OutputNodeInfo[n].Description;
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerMeshModifyRule::HasConversionParameter(const std::string& name)
+std::string vtkSlicerMeshModifyRule::GetNthOutputNodeClassName(int n)
 {
-  return (this->ConversionParameters.count(name) > 0);
+  if (n > this->OutputNodeInfo.size())
+    {
+    vtkErrorMacro("Output node " << n << " is out of range!");
+    return "";
+    }
+  return this->OutputNodeInfo[n].ClassName;
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerMeshModifyRule::PrintSelf(ostream& os, vtkIndent indent)
+{
+  Superclass::PrintSelf(os, indent);
+  os << indent << "Name:\t" << this->GetName() << std::endl;
 }

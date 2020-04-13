@@ -10,12 +10,16 @@ set(${KIT}_INCLUDE_DIRECTORIES
 set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.cxx
   vtkSlicer${MODULE_NAME}Logic.h
-  vtkSlicer${MODULE_NAME}Logic.h
-  vtkSlicer${MODULE_NAME}Logic.h
+  vtkSlicer${MODULE_NAME}Rule.cxx
+  vtkSlicer${MODULE_NAME}Rule.h
+  vtkSlicerPlaneCutRule.cxx
+  vtkSlicerPlaneCutRule.h
+  vtkSlicer${MODULE_NAME}RuleFactory.cxx
+  vtkSlicer${MODULE_NAME}RuleFactory.h
   )
 
 set(${KIT}_TARGET_LIBRARIES
-  ${ITK_LIBRARIES}
+  vtkSlicer${MODULE_NAME}ModuleMRML
   )
 
 #-----------------------------------------------------------------------------

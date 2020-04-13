@@ -30,7 +30,12 @@
 #include <vtkMRMLScene.h>
 #include <vtkMRMLScalarVolumeNode.h>
 
+//
+#include <vtkMRMLMarkupsPlaneNode.h>
+#include <vtkMRMLModelNode.h>
+
 // VTK includes
+#include <vtkCommand.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkSmartPointer.h>
@@ -39,8 +44,10 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
-static const char* SEGMENTATION_REFERENCE_ROLE = "segmentationRef";
-static const char* MASTER_VOLUME_REFERENCE_ROLE = "masterVolumeRef";
+static const char* INPUT_REFERENCE_ROLE = "inputNode";
+static const char* INPUT_REFERENCE_ATTRIBUTE_NAME = "inputNodeRef";
+static const char* OUTPUT_REFERENCE_ROLE = "outputNode";
+static const char* OUTPUT_REFERENCE_ATTRIBUTE_NAME = "outputNodeRef";
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLMeshModifyNode);
@@ -49,6 +56,12 @@ vtkMRMLNodeNewMacro(vtkMRMLMeshModifyNode);
 vtkMRMLMeshModifyNode::vtkMRMLMeshModifyNode()
   : MethodName(nullptr)
 {
+  vtkNew<vtkIntArray> events;
+  events->InsertNextTuple1(vtkCommand::ModifiedEvent);
+  events->InsertNextTuple1(vtkMRMLMarkupsPlaneNode::PointModifiedEvent); // TODO: Allow other events
+  events->InsertNextTuple1(vtkMRMLModelNode::PolyDataModifiedEvent); // TODO: Allow other events
+  this->AddNodeReferenceRole(INPUT_REFERENCE_ROLE, INPUT_REFERENCE_ATTRIBUTE_NAME, events);
+  this->AddNodeReferenceRole(OUTPUT_REFERENCE_ROLE, OUTPUT_REFERENCE_ATTRIBUTE_NAME, nullptr);
 }
 
 //----------------------------------------------------------------------------
@@ -62,6 +75,7 @@ void vtkMRMLMeshModifyNode::WriteXML(ostream& of, int nIndent)
   Superclass::WriteXML(of, nIndent);
   vtkMRMLWriteXMLBeginMacro(of);
   vtkMRMLWriteXMLStringMacro(methodName, MethodName);
+  vtkMRMLWriteXMLBooleanMacro(continuousUpdate, ContinuousUpdate);
   vtkMRMLWriteXMLEndMacro();
 }
 
@@ -72,6 +86,7 @@ void vtkMRMLMeshModifyNode::ReadXMLAttributes(const char** atts)
   Superclass::ReadXMLAttributes(atts);
   vtkMRMLReadXMLBeginMacro(atts);
   vtkMRMLReadXMLStringMacro(methodName, MethodName);
+  vtkMRMLReadXMLBooleanMacro(continuousUpdate, ContinuousUpdate);
   vtkMRMLReadXMLEndMacro();
 }
 
@@ -84,6 +99,7 @@ void vtkMRMLMeshModifyNode::Copy(vtkMRMLNode *anode)
   Superclass::Copy(anode);
   vtkMRMLCopyBeginMacro(anode);
   vtkMRMLCopyStringMacro(MethodName);
+  vtkMRMLCopyBooleanMacro(ContinuousUpdate);
   vtkMRMLCopyEndMacro();
 }
 
@@ -93,5 +109,42 @@ void vtkMRMLMeshModifyNode::PrintSelf(ostream& os, vtkIndent indent)
   Superclass::PrintSelf(os,indent);
   vtkMRMLPrintBeginMacro(os, indent);
   vtkMRMLPrintStringMacro(MethodName);
+  vtkMRMLPrintBooleanMacro(ContinuousUpdate);
   vtkMRMLPrintEndMacro();
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLMeshModifyNode::ProcessMRMLEvents(vtkObject* caller, unsigned long eventID, void* callData)
+{
+  Superclass::ProcessMRMLEvents(caller, eventID, callData);
+  if (!this->Scene)
+    {
+    vtkErrorMacro("ProcessMRMLEvents: Invalid MRML scene");
+    return;
+    }
+
+  vtkMRMLNode* node = vtkMRMLNode::SafeDownCast(caller);
+  if (!node)
+    {
+    return;
+    }
+
+  std::vector<const char*> inputNodes;
+  if (this->HasNodeReferenceID(INPUT_REFERENCE_ROLE, node->GetID()))
+    {
+    this->InvokeEvent(InputNodeModified, caller);
+    }
+}
+
+
+//----------------------------------------------------------------------------
+void vtkMRMLMeshModifyNode::SetNthInputNode(int n, std::string id)
+{
+  this->SetNthNodeReferenceID(INPUT_REFERENCE_ROLE, n, id.c_str());
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLMeshModifyNode::SetNthOutputNode(int n, std::string id)
+{
+  this->SetNthNodeReferenceID(OUTPUT_REFERENCE_ROLE, n, id.c_str());
 }

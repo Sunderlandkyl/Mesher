@@ -27,13 +27,18 @@
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
 
-// MRML includes
+// Logic includes
+#include <vtkSlicerMeshModifyRule.h>
 
 // STD includes
 #include <cstdlib>
 
 #include "vtkSlicerMeshModifyModuleLogicExport.h"
 
+// VTK includes
+#include <vtkSmartPointer.h>
+
+class vtkMRMLMeshModifyNode;
 
 /// \ingroup Slicer_QtModules_ExtensionTemplate
 class VTK_SLICER_MESHMODIFY_MODULE_LOGIC_EXPORT vtkSlicerMeshModifyLogic :
@@ -43,19 +48,25 @@ public:
 
   static vtkSlicerMeshModifyLogic *New();
   vtkTypeMacro(vtkSlicerMeshModifyLogic, vtkSlicerModuleLogic);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  void RunMeshModify(vtkMRMLMeshModifyNode* meshModifyNode);
 
 protected:
   vtkSlicerMeshModifyLogic();
   virtual ~vtkSlicerMeshModifyLogic();
+  void ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData) override;
 
-  virtual void SetMRMLSceneInternal(vtkMRMLScene* newScene);
+  void SetMRMLSceneInternal(vtkMRMLScene* newScene) override;
   /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
-  virtual void RegisterNodes();
-  virtual void UpdateFromMRMLScene();
-  virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
-  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
+  void RegisterNodes() override;
+  void OnMRMLSceneNodeAdded(vtkMRMLNode* node) override;
+  void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) override;
+
 private:
+
+  typedef std::map<std::string,vtkSmartPointer<vtkSlicerMeshModifyRule> > MeshModifyRuleList;
+  MeshModifyRuleList Rules;
 
   vtkSlicerMeshModifyLogic(const vtkSlicerMeshModifyLogic&); // Not implemented
   void operator=(const vtkSlicerMeshModifyLogic&); // Not implemented
