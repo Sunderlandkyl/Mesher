@@ -45,6 +45,13 @@ protected:
   QScopedPointer<qSlicerMeshModifyModuleWidgetPrivate> d_ptr;
 
   virtual void setup();
+  virtual void updateInputSelectors();
+  virtual void updateOutputSelectors();
+
+protected slots:
+  virtual void onParameterNodeChanged(vtkMRMLNode* node);
+  virtual void updateWidgetFromMRML();
+  virtual void updateMRMLFromWidget();
 
 private:
   Q_DECLARE_PRIVATE(qSlicerMeshModifyModuleWidget);

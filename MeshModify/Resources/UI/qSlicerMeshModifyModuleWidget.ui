@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>525</width>
-    <height>196</height>
+    <height>216</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QFormLayout" name="formLayout">
+    <layout class="QFormLayout" name="ParameterNodeLayout">
      <item row="0" column="0">
       <widget class="QLabel" name="label">
        <property name="text">
@@ -24,7 +24,13 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="qMRMLNodeComboBox" name="ParameterNodeComboBox"/>
+      <widget class="qMRMLNodeComboBox" name="ParameterNodeComboBox">
+       <property name="nodeTypes">
+        <stringlist>
+         <string>vtkMRMLMeshModifyNode</string>
+        </stringlist>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -33,7 +39,7 @@
      <property name="text">
       <string>Input nodes</string>
      </property>
-     <layout class="QFormLayout" name="formLayout_3"/>
+     <layout class="QVBoxLayout" name="verticalLayout_3"/>
     </widget>
    </item>
    <item>
@@ -41,7 +47,7 @@
      <property name="text">
       <string>Parameters</string>
      </property>
-     <layout class="QFormLayout" name="formLayout_5"/>
+     <layout class="QVBoxLayout" name="verticalLayout_4"/>
     </widget>
    </item>
    <item>
@@ -49,7 +55,14 @@
      <property name="text">
       <string>Output nodes</string>
      </property>
-     <layout class="QFormLayout" name="formLayout_6"/>
+     <layout class="QVBoxLayout" name="verticalLayout_5"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="ctkCheckablePushButton" name="ApplyButton">
+     <property name="text">
+      <string>Apply</string>
+     </property>
     </widget>
    </item>
    <item>
@@ -80,12 +93,39 @@
    <container>1</container>
   </customwidget>
   <customwidget>
+   <class>ctkCheckablePushButton</class>
+   <extends>ctkPushButton</extends>
+   <header>ctkCheckablePushButton.h</header>
+  </customwidget>
+  <customwidget>
    <class>ctkCollapsibleButton</class>
    <extends>QWidget</extends>
    <header>ctkCollapsibleButton.h</header>
    <container>1</container>
   </customwidget>
+  <customwidget>
+   <class>ctkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>ctkPushButton.h</header>
+  </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>qSlicerMeshModifyModuleWidget</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>ParameterNodeComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>262</x>
+     <y>107</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>305</x>
+     <y>19</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

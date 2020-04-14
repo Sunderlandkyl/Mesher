@@ -14,10 +14,6 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  This file was originally developed by Csaba Pinter, PerkLab, Queen's University
-  and was supported through the Applied Cancer Research Unit program of Cancer Care
-  Ontario with funds provided by the Ontario Ministry of Health and Long-Term Care
-
 ==============================================================================*/
 
 #ifndef __vtkMRMLMeshModifyNode_h
@@ -65,18 +61,12 @@ public:
     InputNodeModified,
   };
 
-  vtkGetStringMacro(MethodName);
-  vtkSetStringMacro(MethodName); 
+  vtkGetStringMacro(RuleName);
+  vtkSetStringMacro(RuleName); 
 
   vtkGetMacro(ContinuousUpdate, bool);
   vtkSetMacro(ContinuousUpdate, bool);
   vtkBooleanMacro(ContinuousUpdate, bool);
-
-  /// TODO
-  void SetNthInputNode(int n, std::string id);
-
-  /// TODO
-  void SetNthOutputNode(int n, std::string id);
 
 protected:
   vtkMRMLMeshModifyNode();
@@ -87,7 +77,7 @@ protected:
   void ProcessMRMLEvents(vtkObject* caller, unsigned long eventID, void* callData);
 
   /// Selected segment ID
-  char* MethodName;
+  char* RuleName;
   bool ContinuousUpdate;
 };
 

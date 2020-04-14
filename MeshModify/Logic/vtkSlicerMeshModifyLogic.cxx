@@ -86,7 +86,8 @@ void vtkSlicerMeshModifyLogic
   events->InsertNextValue(vtkCommand::ModifiedEvent);
   events->InsertNextValue(vtkMRMLMeshModifyNode::InputNodeModified);
   vtkObserveMRMLNodeEventsMacro(meshModifyNode, events);
-  this->RunMeshModify(meshModifyNode);
+  this->UpdateMeshModifyRule(meshModifyNode);
+  this->RunMeshModifyRule(meshModifyNode);
 }
 
 //---------------------------------------------------------------------------
@@ -110,81 +111,74 @@ void vtkSlicerMeshModifyLogic
 //---------------------------------------------------------------------------
 void vtkSlicerMeshModifyLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData)
 {
+  Superclass::ProcessMRMLNodesEvents(caller, event, callData);
   vtkMRMLMeshModifyNode* meshModifyNode = vtkMRMLMeshModifyNode::SafeDownCast(caller);
+  if (!meshModifyNode)
+    {
+    return;
+    }
+
+  if (event == vtkCommand::ModifiedEvent)
+    {
+    this->UpdateMeshModifyRule(meshModifyNode);
+    }
+
   if (meshModifyNode && event == vtkMRMLMeshModifyNode::InputNodeModified && meshModifyNode->GetContinuousUpdate())
     {
-    this->RunMeshModify(meshModifyNode);
+    this->RunMeshModifyRule(meshModifyNode);
     }
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerMeshModifyLogic::RunMeshModify(vtkMRMLMeshModifyNode* meshModifyNode)
+void vtkSlicerMeshModifyLogic::UpdateMeshModifyRule(vtkMRMLMeshModifyNode* meshModifyNode)
+{
+  vtkSmartPointer<vtkSlicerMeshModifyRule> rule = this->GetMeshModifyRule(meshModifyNode);
+  if (!rule || strcmp(rule->GetName(), meshModifyNode->GetRuleName()) != 0)
+    {
+    if (meshModifyNode->GetRuleName())
+      {
+      rule = vtkSmartPointer<vtkSlicerMeshModifyRule>::Take(
+        vtkSlicerMeshModifyRuleFactory::GetInstance()->CreateRuleByName(meshModifyNode->GetRuleName()));
+      this->Rules[meshModifyNode->GetID()] = rule;
+      }
+    }
+}
+
+//---------------------------------------------------------------------------
+vtkSlicerMeshModifyRule* vtkSlicerMeshModifyLogic::GetMeshModifyRule(vtkMRMLMeshModifyNode* meshModifyNode)
+{
+  vtkSmartPointer<vtkSlicerMeshModifyRule> rule = nullptr;
+  MeshModifyRuleList::iterator ruleIt = this->Rules.find(meshModifyNode->GetID());
+  if (ruleIt == this->Rules.end())
+    {
+    return nullptr;
+    }
+  return ruleIt->second;
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerMeshModifyLogic::RunMeshModifyRule(vtkMRMLMeshModifyNode* meshModifyNode)
 {
   if (!meshModifyNode)
     {
     vtkErrorMacro("Invalid parameter node!");
     return;
     }
-  if (!meshModifyNode->GetMethodName())
+  if (!meshModifyNode->GetRuleName())
     {
     return;
     }
 
-  vtkSmartPointer<vtkSlicerMeshModifyRule> rule = nullptr;
-  MeshModifyRuleList::iterator ruleIt = this->Rules.find(meshModifyNode->GetID());
-  if (ruleIt == this->Rules.end() || ruleIt->second == nullptr) // || strcmp(ruleIt->second->GetName(), meshModifyNode->GetMethodName()) != 0
-    {
-    rule = vtkSmartPointer<vtkSlicerMeshModifyRule>::Take(
-      vtkSlicerMeshModifyRuleFactory::GetInstance()->CreateRuleByName(meshModifyNode->GetMethodName()));
-    this->Rules[meshModifyNode->GetID()] = rule;
-    }
-  else
-    {
-    vtkErrorMacro(<< ruleIt->second->GetName());
-    vtkErrorMacro(<< meshModifyNode->GetMethodName());
-    rule = ruleIt->second;
-    }
+  vtkSmartPointer<vtkSlicerMeshModifyRule> rule = this->GetMeshModifyRule(meshModifyNode);
   if (!rule)
     {
-    vtkErrorMacro("Could not find rule with name: " << meshModifyNode->GetMethodName());
+    vtkErrorMacro("Could not find rule with name: " << meshModifyNode->GetRuleName());
     return;
     }
-
-  int numberOfInputs = meshModifyNode->GetNumberOfNodeReferences("inputNode"); // TODO: Get function for ref name
-  if (numberOfInputs != rule->GetNumberOfInputNodes())
-    {
-    return;
-    }
-
-  int numberOfOutputs = meshModifyNode->GetNumberOfNodeReferences("outputNode"); // TODO: Get function for ref name
-  if (numberOfOutputs != rule->GetNumberOfOutputNodes())
+  if (!rule->HasRequiredInputs(meshModifyNode))
     {
     return;
     }
 
-  vtkNew<vtkCollection> inputNodes;
-  for (int i = 0; i < numberOfInputs; ++i)
-    {
-    vtkMRMLNode* inputNode = meshModifyNode->GetNthNodeReference("inputNode", i);
-    if (!inputNode)
-      {
-      vtkErrorMacro("Could not find input node!")
-      return;
-      }
-    inputNodes->AddItem(inputNode);
-    }
-
-  vtkNew<vtkCollection> outputNodes;
-  for (int i = 0; i < numberOfOutputs; ++i)
-    {
-    vtkMRMLNode* outputNode = meshModifyNode->GetNthNodeReference("outputNode", i);
-    if (!outputNode)
-      {
-      vtkErrorMacro("Could not find output node!")
-      return;
-      }
-    outputNodes->AddItem(outputNode);
-    }
-
-  rule->Run(inputNodes, outputNodes);  
+  rule->Run(meshModifyNode);
 }

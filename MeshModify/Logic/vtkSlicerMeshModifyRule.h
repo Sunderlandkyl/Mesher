@@ -28,6 +28,8 @@
 #include <vector>
 
 class vtkCollection;
+class vtkMRMLMeshModifyNode;
+class vtkMRMLNode;
 
 /// Helper macro for supporting cloning of rules
 #ifndef vtkRuleNewMacro
@@ -61,16 +63,26 @@ public:
   int GetNumberOfOutputNodes();
 
   /// TODO
-  std::string GetNthInputNodeName(int n);
-  std::string GetNthInputNodeDescription(int n);
-  std::string GetNthInputNodeClassName(int n);
+  std::string  GetNthInputNodeName(int n);
+  std::string  GetNthInputNodeDescription(int n);
+  std::string  GetNthInputNodeClassName(int n);
+  std::string  GetNthInputNodeReferenceRole(int n);
+  bool         GetNthInputNodeRequired(int n);
+  vtkMRMLNode* GetNthInputNode(int n, vtkMRMLMeshModifyNode* meshModifyNode);
 
   /// TODO
-  std::string GetNthOutputNodeName(int n);
-  std::string GetNthOutputNodeDescription(int n);
-  std::string GetNthOutputNodeClassName(int n);
+  std::string  GetNthOutputNodeName(int n);
+  std::string  GetNthOutputNodeDescription(int n);
+  std::string  GetNthOutputNodeClassName(int n);
+  std::string  GetNthOutputNodeReferenceRole(int n);
+  bool         GetNthOutputNodeRequired(int n);
+  vtkMRMLNode* GetNthOutputNode(int n, vtkMRMLMeshModifyNode* meshModifyNode);
 
-  virtual bool Run(vtkCollection* inputNodes, vtkCollection* outputNodes) = 0;
+  /// 
+  virtual bool HasRequiredInputs(vtkMRMLMeshModifyNode* meshModifyNode);
+
+  virtual bool Run(vtkMRMLMeshModifyNode* meshModifyNode);
+  virtual bool RunInternal(vtkMRMLMeshModifyNode* meshModifyNode) = 0;
 
 protected:
   vtkSlicerMeshModifyRule();
@@ -80,9 +92,20 @@ protected:
 protected:
   struct NodeInfo
   {
+    NodeInfo(std::string name, std::string description, std::string className, std::string referenceRole, bool required)
+      : Name(name)
+      , Description(description)
+      , ClassName(className)
+      , ReferenceRole(referenceRole)
+      , Required(required)
+      {
+      }
+
     std::string Name;
     std::string Description;
     std::string ClassName;
+    std::string ReferenceRole;
+    bool        Required;
   };
   std::vector<NodeInfo> InputNodeInfo;
   std::vector<NodeInfo> OutputNodeInfo;

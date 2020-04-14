@@ -14,10 +14,6 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  This file was originally developed by Csaba Pinter, PerkLab, Queen's University
-  and was supported through the Applied Cancer Research Unit program of Cancer Care
-  Ontario with funds provided by the Ontario Ministry of Health and Long-Term Care
-
 ==============================================================================*/
 
 // Segmentations MRML includes
@@ -43,25 +39,13 @@
 // STD includes
 #include <sstream>
 
-//------------------------------------------------------------------------------
-static const char* INPUT_REFERENCE_ROLE = "inputNode";
-static const char* INPUT_REFERENCE_ATTRIBUTE_NAME = "inputNodeRef";
-static const char* OUTPUT_REFERENCE_ROLE = "outputNode";
-static const char* OUTPUT_REFERENCE_ATTRIBUTE_NAME = "outputNodeRef";
-
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLMeshModifyNode);
 
 //----------------------------------------------------------------------------
 vtkMRMLMeshModifyNode::vtkMRMLMeshModifyNode()
-  : MethodName(nullptr)
+  : RuleName(nullptr)
 {
-  vtkNew<vtkIntArray> events;
-  events->InsertNextTuple1(vtkCommand::ModifiedEvent);
-  events->InsertNextTuple1(vtkMRMLMarkupsPlaneNode::PointModifiedEvent); // TODO: Allow other events
-  events->InsertNextTuple1(vtkMRMLModelNode::PolyDataModifiedEvent); // TODO: Allow other events
-  this->AddNodeReferenceRole(INPUT_REFERENCE_ROLE, INPUT_REFERENCE_ATTRIBUTE_NAME, events);
-  this->AddNodeReferenceRole(OUTPUT_REFERENCE_ROLE, OUTPUT_REFERENCE_ATTRIBUTE_NAME, nullptr);
 }
 
 //----------------------------------------------------------------------------
@@ -74,7 +58,7 @@ void vtkMRMLMeshModifyNode::WriteXML(ostream& of, int nIndent)
 {
   Superclass::WriteXML(of, nIndent);
   vtkMRMLWriteXMLBeginMacro(of);
-  vtkMRMLWriteXMLStringMacro(methodName, MethodName);
+  vtkMRMLWriteXMLStringMacro(methodName, RuleName);
   vtkMRMLWriteXMLBooleanMacro(continuousUpdate, ContinuousUpdate);
   vtkMRMLWriteXMLEndMacro();
 }
@@ -85,7 +69,7 @@ void vtkMRMLMeshModifyNode::ReadXMLAttributes(const char** atts)
   MRMLNodeModifyBlocker blocker(this);
   Superclass::ReadXMLAttributes(atts);
   vtkMRMLReadXMLBeginMacro(atts);
-  vtkMRMLReadXMLStringMacro(methodName, MethodName);
+  vtkMRMLReadXMLStringMacro(methodName, RuleName);
   vtkMRMLReadXMLBooleanMacro(continuousUpdate, ContinuousUpdate);
   vtkMRMLReadXMLEndMacro();
 }
@@ -98,7 +82,7 @@ void vtkMRMLMeshModifyNode::Copy(vtkMRMLNode *anode)
   MRMLNodeModifyBlocker blocker(this);
   Superclass::Copy(anode);
   vtkMRMLCopyBeginMacro(anode);
-  vtkMRMLCopyStringMacro(MethodName);
+  vtkMRMLCopyStringMacro(RuleName);
   vtkMRMLCopyBooleanMacro(ContinuousUpdate);
   vtkMRMLCopyEndMacro();
 }
@@ -108,7 +92,7 @@ void vtkMRMLMeshModifyNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
   vtkMRMLPrintBeginMacro(os, indent);
-  vtkMRMLPrintStringMacro(MethodName);
+  vtkMRMLPrintStringMacro(RuleName);
   vtkMRMLPrintBooleanMacro(ContinuousUpdate);
   vtkMRMLPrintEndMacro();
 }
@@ -128,23 +112,5 @@ void vtkMRMLMeshModifyNode::ProcessMRMLEvents(vtkObject* caller, unsigned long e
     {
     return;
     }
-
-  std::vector<const char*> inputNodes;
-  if (this->HasNodeReferenceID(INPUT_REFERENCE_ROLE, node->GetID()))
-    {
-    this->InvokeEvent(InputNodeModified, caller);
-    }
-}
-
-
-//----------------------------------------------------------------------------
-void vtkMRMLMeshModifyNode::SetNthInputNode(int n, std::string id)
-{
-  this->SetNthNodeReferenceID(INPUT_REFERENCE_ROLE, n, id.c_str());
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLMeshModifyNode::SetNthOutputNode(int n, std::string id)
-{
-  this->SetNthNodeReferenceID(OUTPUT_REFERENCE_ROLE, n, id.c_str());
+  this->InvokeEvent(InputNodeModified, caller);
 }

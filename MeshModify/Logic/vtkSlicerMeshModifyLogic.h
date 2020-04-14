@@ -50,7 +50,8 @@ public:
   vtkTypeMacro(vtkSlicerMeshModifyLogic, vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  void RunMeshModify(vtkMRMLMeshModifyNode* meshModifyNode);
+  vtkSlicerMeshModifyRule* GetMeshModifyRule(vtkMRMLMeshModifyNode* meshModifyNode);
+  void RunMeshModifyRule(vtkMRMLMeshModifyNode* meshModifyNode);
 
 protected:
   vtkSlicerMeshModifyLogic();
@@ -62,6 +63,8 @@ protected:
   void RegisterNodes() override;
   void OnMRMLSceneNodeAdded(vtkMRMLNode* node) override;
   void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) override;
+
+  void UpdateMeshModifyRule(vtkMRMLMeshModifyNode* meshModifyNode);
 
 private:
 

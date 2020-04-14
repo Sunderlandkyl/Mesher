@@ -31,6 +31,7 @@
 class vtkClipPolyData;
 class vtkDataObject;
 class vtkGeneralTransform;
+class vtkMRMLMeshModifyNode;
 class vtkPlane;
 class vtkTransformPolyDataFilter;
 
@@ -47,7 +48,7 @@ public:
   /// Human-readable name of the mesh modification rule
   virtual const char* GetName() override;
 
-  virtual bool Run(vtkCollection* inputNodes, vtkCollection* outputNodes);
+  virtual bool RunInternal(vtkMRMLMeshModifyNode* meshModifyNode) override;
 
 protected:
   vtkSlicerPlaneCutRule();
@@ -61,8 +62,11 @@ protected:
   vtkSmartPointer<vtkClipPolyData>            PlaneClipper;
   vtkSmartPointer<vtkPlane>                   Plane;
 
-  vtkSmartPointer<vtkTransformPolyDataFilter> OutputModelToWorldTransformFilter;
-  vtkSmartPointer<vtkGeneralTransform>        OutputWorldToModelTransform;
+  vtkSmartPointer<vtkTransformPolyDataFilter> OutputPositiveModelToWorldTransformFilter;
+  vtkSmartPointer<vtkGeneralTransform>        OutputPositiveWorldToModelTransform;
+
+  vtkSmartPointer<vtkTransformPolyDataFilter> OutputNegativeModelToWorldTransformFilter;
+  vtkSmartPointer<vtkGeneralTransform>        OutputNegativeWorldToModelTransform;
 };
 
 #endif // __vtkSlicerPlaneCutRule_h

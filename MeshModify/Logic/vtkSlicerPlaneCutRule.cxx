@@ -12,13 +12,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  This file was originally developed by Csaba Pinter, PerkLab, Queen's University
-  and was supported through the Applied Cancer Research Unit program of Cancer Care
-  Ontario with funds provided by the Ontario Ministry of Health and Long-Term Care
-
 ==============================================================================*/
 
 #include "vtkSlicerPlaneCutRule.h"
+
+#include "vtkMRMLMeshModifyNode.h"
 
 // MRML includes
 #include <vtkMRMLMarkupsPlaneNode.h>
@@ -40,25 +38,45 @@ vtkRuleNewMacro(vtkSlicerPlaneCutRule);
 //----------------------------------------------------------------------------
 vtkSlicerPlaneCutRule::vtkSlicerPlaneCutRule()
 {
-  NodeInfo input0Info;
-  input0Info.Name = "Plane node";
-  input0Info.Description = "Plane node to cut the model node.";
-  input0Info.ClassName = "vtkMRMLMarkupsPlaneNode";
+  /////////
+  // Inputs
+  NodeInfo inputPlane(
+    "Plane node",
+    "Plane node to cut the model node.",
+    "vtkMRMLMarkupsPlaneNode",
+    "PlaneCut.InputPlane",
+    true
+    );
+  this->InputNodeInfo.push_back(inputPlane);
 
-  NodeInfo input1Info;
-  input1Info.Name = "Model node";
-  input1Info.Description = "Model node to be cut.";
-  input1Info.ClassName = "vtkMRMLModelNode";
+  NodeInfo inputModel(
+    "Model node",
+    "Model node to be cut.",
+    "vtkMRMLModelNode",
+    "PlaneCut.InputModel",
+    true
+    );
+  this->InputNodeInfo.push_back(inputModel);
 
-  this->InputNodeInfo.push_back(input0Info);
-  this->InputNodeInfo.push_back(input1Info);
+  /////////
+  // Outputs
+  NodeInfo outputPositiveModel(
+    "Positive model node",
+    "Portion of the cut model that is on the same side of the plane as the normal.",
+    "vtkMRMLModelNode",
+    "PlaneCut.OutputPositiveModel",
+    false
+    );
+  this->OutputNodeInfo.push_back(outputPositiveModel);
 
-  NodeInfo outputInfo;
-  outputInfo.Name = "Model node";
-  outputInfo.Description = "Cut model node.";
-  outputInfo.ClassName = "vtkMRMLModelNode";
-
-  this->OutputNodeInfo.push_back(outputInfo);
+  NodeInfo outputNegativeModel(
+    "Negative model node",
+    "Portion of the cut model that is on the opposite side of the plane as the normal.",
+    "vtkMRMLModelNode",
+    "PlaneCut.OutputNegativeModel",
+    false
+    ); 
+  this->OutputNodeInfo.push_back(outputNegativeModel);
 
   this->InputModelToWorldTransformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
   this->InputModelNodeToWorldTransform = vtkSmartPointer<vtkGeneralTransform>::New();
@@ -69,11 +87,17 @@ vtkSlicerPlaneCutRule::vtkSlicerPlaneCutRule()
 
   this->Plane = vtkSmartPointer<vtkPlane>::New();
   this->PlaneClipper->SetClipFunction(this->Plane);
+  this->PlaneClipper->GenerateClippedOutputOn();
 
-  this->OutputModelToWorldTransformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
-  this->OutputWorldToModelTransform = vtkSmartPointer<vtkGeneralTransform>::New();
-  this->OutputModelToWorldTransformFilter->SetTransform(this->OutputWorldToModelTransform); 
-  this->OutputModelToWorldTransformFilter->SetInputConnection(this->PlaneClipper->GetOutputPort());
+  this->OutputPositiveModelToWorldTransformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+  this->OutputPositiveWorldToModelTransform = vtkSmartPointer<vtkGeneralTransform>::New();
+  this->OutputPositiveModelToWorldTransformFilter->SetTransform(this->OutputPositiveWorldToModelTransform);
+  this->OutputPositiveModelToWorldTransformFilter->SetInputConnection(this->PlaneClipper->GetOutputPort(0));
+
+  this->OutputNegativeModelToWorldTransformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
+  this->OutputNegativeWorldToModelTransform = vtkSmartPointer<vtkGeneralTransform>::New();
+  this->OutputNegativeModelToWorldTransformFilter->SetTransform(this->OutputNegativeWorldToModelTransform);
+  this->OutputNegativeModelToWorldTransformFilter->SetInputConnection(this->PlaneClipper->GetOutputPort(1));
 }
 
 //----------------------------------------------------------------------------
@@ -88,25 +112,27 @@ const char* vtkSlicerPlaneCutRule::GetName()
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerPlaneCutRule::Run(vtkCollection* inputNodes, vtkCollection* outputNodes)
+bool vtkSlicerPlaneCutRule::RunInternal(vtkMRMLMeshModifyNode* meshModifyNode)
 {
-  if (inputNodes->GetNumberOfItems() != this->GetNumberOfInputNodes())
+  if (!this->HasRequiredInputs(meshModifyNode))
     {
     vtkErrorMacro("Invalid number of inputs");
     return false;
     }
-  if (outputNodes->GetNumberOfItems() != this->GetNumberOfOutputNodes())
+
+  vtkMRMLModelNode* outputPositiveModelNode = vtkMRMLModelNode::SafeDownCast(this->GetNthOutputNode(0, meshModifyNode)); // TODO: nth order is never defined
+  vtkMRMLModelNode* outputNegativeModelNode = vtkMRMLModelNode::SafeDownCast(this->GetNthOutputNode(1, meshModifyNode)); // TODO: nth order is never defined
+  if (!outputPositiveModelNode && !outputNegativeModelNode)
     {
-    vtkErrorMacro("Invalid number of outputs");
-    return false;
+    // Nothing to output
+    return true;
     }
 
-  vtkMRMLMarkupsPlaneNode* inputPlaneNode = vtkMRMLMarkupsPlaneNode::SafeDownCast(inputNodes->GetItemAsObject(0));
-  vtkMRMLModelNode* inputModelNode = vtkMRMLModelNode::SafeDownCast(inputNodes->GetItemAsObject(1));
-  vtkMRMLModelNode* outputModelNode = vtkMRMLModelNode::SafeDownCast(outputNodes->GetItemAsObject(0));
-  if (!inputPlaneNode || !inputModelNode || !outputModelNode)
+  vtkMRMLMarkupsPlaneNode* inputPlaneNode = vtkMRMLMarkupsPlaneNode::SafeDownCast(this->GetNthInputNode(0, meshModifyNode)); // TODO: nth order is never defined
+  vtkMRMLModelNode* inputModelNode = vtkMRMLModelNode::SafeDownCast(this->GetNthInputNode(1, meshModifyNode)); // TODO: nth order is never defined
+  if (!inputPlaneNode || !inputModelNode)
     {
-    vtkErrorMacro("Invalid input!");
+    vtkErrorMacro("Invalid input nodes!");
     return false;
     }
 
@@ -114,12 +140,16 @@ bool vtkSlicerPlaneCutRule::Run(vtkCollection* inputNodes, vtkCollection* output
     {
     inputModelNode->GetParentTransformNode()->GetTransformToWorld(this->InputModelNodeToWorldTransform);
     }
-  if (outputModelNode->GetParentTransformNode())
+  if (outputPositiveModelNode && outputPositiveModelNode->GetParentTransformNode())
     {
-    outputModelNode->GetParentTransformNode()->GetTransformFromWorld(this->OutputWorldToModelTransform);
+    outputPositiveModelNode->GetParentTransformNode()->GetTransformFromWorld(this->OutputPositiveWorldToModelTransform);
+    }
+  if (outputNegativeModelNode && outputNegativeModelNode->GetParentTransformNode())
+    {
+    outputNegativeModelNode->GetParentTransformNode()->GetTransformFromWorld(this->OutputNegativeWorldToModelTransform);
     }
 
-  this->InputModelToWorldTransformFilter->SetInputConnection(inputModelNode->GetMeshConnection());
+  this->InputModelToWorldTransformFilter->SetInputConnection(inputModelNode->GetMeshConnection()); 
 
   double origin_World[3] = { 0.0 };
   inputPlaneNode->GetOriginWorld(origin_World);
@@ -129,8 +159,17 @@ bool vtkSlicerPlaneCutRule::Run(vtkCollection* inputNodes, vtkCollection* output
   inputPlaneNode->GetNormalWorld(normal_World);
   this->Plane->SetNormal(normal_World);
 
-  this->OutputModelToWorldTransformFilter->Update();
-  outputModelNode->SetAndObserveMesh(this->OutputModelToWorldTransformFilter->GetOutput());
+  if (outputPositiveModelNode)
+    {
+    this->OutputPositiveModelToWorldTransformFilter->Update();
+    outputPositiveModelNode->SetAndObserveMesh(this->OutputPositiveModelToWorldTransformFilter->GetOutput());
+    }
+
+  if (outputNegativeModelNode)
+    {
+    this->OutputNegativeModelToWorldTransformFilter->Update();
+    outputNegativeModelNode->SetAndObserveMesh(this->OutputNegativeModelToWorldTransformFilter->GetOutput());
+    }
 
   return true;
 }
