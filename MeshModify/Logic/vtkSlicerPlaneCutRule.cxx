@@ -26,7 +26,9 @@
 // VTK includes
 #include <vtkClipPolyData.h>
 #include <vtkCollection.h>
+#include <vtkCommand.h>
 #include <vtkGeneralTransform.h>
+#include <vtkIntArray.h>
 #include <vtkObjectFactory.h>
 #include <vtkPlane.h>
 #include <vtkSmartPointer.h>
@@ -40,21 +42,31 @@ vtkSlicerPlaneCutRule::vtkSlicerPlaneCutRule()
 {
   /////////
   // Inputs
+  vtkNew<vtkIntArray> inputPlaneEvents;
+  inputPlaneEvents->InsertNextTuple1(vtkCommand::ModifiedEvent);
+  inputPlaneEvents->InsertNextTuple1(vtkMRMLMarkupsNode::PointModifiedEvent);
+  inputPlaneEvents->InsertNextTuple1(vtkMRMLTransformableNode::TransformModifiedEvent);
   NodeInfo inputPlane(
     "Plane node",
     "Plane node to cut the model node.",
     "vtkMRMLMarkupsPlaneNode",
     "PlaneCut.InputPlane",
-    true
+    true,
+    inputPlaneEvents
     );
   this->InputNodeInfo.push_back(inputPlane);
 
+  vtkNew<vtkIntArray> inputModelEvents;
+  inputModelEvents->InsertNextTuple1(vtkCommand::ModifiedEvent);
+  inputModelEvents->InsertNextTuple1(vtkMRMLModelNode::MeshModifiedEvent);
+  inputModelEvents->InsertNextTuple1(vtkMRMLTransformableNode::TransformModifiedEvent);
   NodeInfo inputModel(
     "Model node",
     "Model node to be cut.",
     "vtkMRMLModelNode",
     "PlaneCut.InputModel",
-    true
+    true,
+    inputModelEvents
     );
   this->InputNodeInfo.push_back(inputModel);
 
@@ -136,6 +148,12 @@ bool vtkSlicerPlaneCutRule::RunInternal(vtkMRMLMeshModifyNode* meshModifyNode)
     return false;
     }
 
+  if (!inputModelNode->GetMesh() || inputModelNode->GetMesh()->GetNumberOfPoints() == 0)
+    {
+    inputModelNode->GetMesh()->Initialize();
+    return true;
+    }
+
   if (inputModelNode->GetParentTransformNode())
     {
     inputModelNode->GetParentTransformNode()->GetTransformToWorld(this->InputModelNodeToWorldTransform);
@@ -161,14 +179,18 @@ bool vtkSlicerPlaneCutRule::RunInternal(vtkMRMLMeshModifyNode* meshModifyNode)
 
   if (outputPositiveModelNode)
     {
+    MRMLNodeModifyBlocker blocker(outputPositiveModelNode);
     this->OutputPositiveModelToWorldTransformFilter->Update();
     outputPositiveModelNode->SetAndObserveMesh(this->OutputPositiveModelToWorldTransformFilter->GetOutput());
+    outputPositiveModelNode->InvokeCustomModifiedEvent(vtkMRMLModelNode::MeshModifiedEvent);
     }
 
   if (outputNegativeModelNode)
     {
+    MRMLNodeModifyBlocker blocker(outputNegativeModelNode);
     this->OutputNegativeModelToWorldTransformFilter->Update();
     outputNegativeModelNode->SetAndObserveMesh(this->OutputNegativeModelToWorldTransformFilter->GetOutput());
+    outputNegativeModelNode->InvokeCustomModifiedEvent(vtkMRMLModelNode::MeshModifiedEvent);
     }
 
   return true;

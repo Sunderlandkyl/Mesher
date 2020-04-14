@@ -112,6 +112,11 @@ void vtkSlicerMeshModifyLogic
 void vtkSlicerMeshModifyLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData)
 {
   Superclass::ProcessMRMLNodesEvents(caller, event, callData);
+  if (!this->GetMRMLScene() || this->GetMRMLScene()->IsImporting())
+    {
+    return;
+    }
+
   vtkMRMLMeshModifyNode* meshModifyNode = vtkMRMLMeshModifyNode::SafeDownCast(caller);
   if (!meshModifyNode)
     {
@@ -123,9 +128,13 @@ void vtkSlicerMeshModifyLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsigne
     this->UpdateMeshModifyRule(meshModifyNode);
     }
 
-  if (meshModifyNode && event == vtkMRMLMeshModifyNode::InputNodeModified && meshModifyNode->GetContinuousUpdate())
+  if (meshModifyNode && meshModifyNode->GetContinuousUpdate())
     {
-    this->RunMeshModifyRule(meshModifyNode);
+    vtkSmartPointer<vtkSlicerMeshModifyRule> rule = this->GetMeshModifyRule(meshModifyNode);
+    if (rule)
+      {
+      this->RunMeshModifyRule(meshModifyNode);
+      }
     }
 }
 
@@ -140,6 +149,22 @@ void vtkSlicerMeshModifyLogic::UpdateMeshModifyRule(vtkMRMLMeshModifyNode* meshM
       rule = vtkSmartPointer<vtkSlicerMeshModifyRule>::Take(
         vtkSlicerMeshModifyRuleFactory::GetInstance()->CreateRuleByName(meshModifyNode->GetRuleName()));
       this->Rules[meshModifyNode->GetID()] = rule;
+      }
+    }
+  
+  if (rule)
+    {
+    for (int i = 0; i < rule->GetNumberOfInputNodes(); ++i)
+      {
+      std::string referenceRole = rule->GetNthInputNodeReferenceRole(i);
+      vtkMRMLNode* node = meshModifyNode->GetNodeReference(referenceRole.c_str());
+      if (!node)
+        {
+        continue;
+        }
+      
+      vtkIntArray* events = rule->GetNthInputNodeEvents(i);
+      meshModifyNode->SetAndObserveNodeReferenceID(referenceRole.c_str(), node->GetID(), events);
       }
     }
 }

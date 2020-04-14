@@ -20,6 +20,7 @@
 #include "vtkSlicerMeshModifyModuleLogicExport.h"
 
 // VTK includes
+#include <vtkIntArray.h>
 #include <vtkObject.h>
 
 // STD includes
@@ -68,6 +69,7 @@ public:
   std::string  GetNthInputNodeClassName(int n);
   std::string  GetNthInputNodeReferenceRole(int n);
   bool         GetNthInputNodeRequired(int n);
+  vtkIntArray* GetNthInputNodeEvents(int n);
   vtkMRMLNode* GetNthInputNode(int n, vtkMRMLMeshModifyNode* meshModifyNode);
 
   /// TODO
@@ -92,20 +94,22 @@ protected:
 protected:
   struct NodeInfo
   {
-    NodeInfo(std::string name, std::string description, std::string className, std::string referenceRole, bool required)
+    NodeInfo(std::string name, std::string description, std::string className, std::string referenceRole, bool required, vtkIntArray* events = nullptr)
       : Name(name)
       , Description(description)
       , ClassName(className)
       , ReferenceRole(referenceRole)
       , Required(required)
+      , Events(events)
       {
       }
 
-    std::string Name;
-    std::string Description;
-    std::string ClassName;
-    std::string ReferenceRole;
-    bool        Required;
+    std::string                  Name;
+    std::string                  Description;
+    std::string                  ClassName;
+    std::string                  ReferenceRole;
+    bool                         Required;
+    vtkSmartPointer<vtkIntArray> Events;
   };
   std::vector<NodeInfo> InputNodeInfo;
   std::vector<NodeInfo> OutputNodeInfo;

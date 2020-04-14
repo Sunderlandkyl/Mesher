@@ -171,6 +171,17 @@ void vtkSlicerMeshModifyRule::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //---------------------------------------------------------------------------
+vtkIntArray* vtkSlicerMeshModifyRule::GetNthInputNodeEvents(int n)
+{
+  if (n > this->InputNodeInfo.size())
+    {
+    vtkErrorMacro("Input node " << n << " is out of range!");
+    return false;
+    }
+  return this->InputNodeInfo[n].Events;
+}
+
+//---------------------------------------------------------------------------
 vtkMRMLNode* vtkSlicerMeshModifyRule::GetNthInputNode(int n, vtkMRMLMeshModifyNode* meshModifyNode)
 {
   if(!meshModifyNode)
@@ -178,9 +189,9 @@ vtkMRMLNode* vtkSlicerMeshModifyRule::GetNthInputNode(int n, vtkMRMLMeshModifyNo
     vtkErrorMacro("Invalid parameter node");
     return nullptr;
     }
-  if (n > this->OutputNodeInfo.size())
+  if (n > this->InputNodeInfo.size())
     {
-    vtkErrorMacro("Output node " << n << " is out of range!");
+    vtkErrorMacro("Input node " << n << " is out of range!");
     return false;
     }
   std::string referenceRole = this->GetNthInputNodeReferenceRole(n);
