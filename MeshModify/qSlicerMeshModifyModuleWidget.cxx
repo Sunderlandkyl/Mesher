@@ -29,6 +29,7 @@
 
 //
 #include <vtkSlicerMeshModifyLogic.h>
+#include <vtkSlicerMeshModifyRuleFactory.h>
 
 // 
 #include <vtkMRMLMeshModifyNode.h>
@@ -78,6 +79,23 @@ void qSlicerMeshModifyModuleWidget::setup()
 
   connect(d->ParameterNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
     this, SLOT(onParameterNodeChanged(vtkMRMLNode*)));
+
+  d->RuleComboBox->clear();
+  vtkSlicerMeshModifyRuleFactory* ruleFactory = vtkSlicerMeshModifyRuleFactory::GetInstance();
+  if (ruleFactory)
+    {
+    d->RuleComboBox->addItem("");
+    std::vector<std::string> ruleNames = ruleFactory->GetMeshModifyRuleNames();
+    for (std::string ruleName : ruleNames)
+      {
+      d->RuleComboBox->addItem(ruleName.c_str(), ruleName.c_str());
+      }
+    }
+
+  connect(d->RuleComboBox, SIGNAL(currentIndexChanged(int)),
+    this, SLOT(updateMRMLFromWidget()));
+  connect(d->ApplyButton, SIGNAL(clicked()),
+    this, SLOT(updateMRMLFromWidget()));
 }
 
 //-----------------------------------------------------------------------------
@@ -234,8 +252,8 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
   QList< qMRMLNodeComboBox*> inputNodeSelectors = d->InputNodesCollapsibleButton->findChildren<qMRMLNodeComboBox*>();
   for (qMRMLNodeComboBox* inputNodeSelector : inputNodeSelectors)
     {
-    std::string referenceRole = inputNodeSelector->property("ReferenceRole").toString().toStdString();
-    vtkMRMLNode* referenceNode = d->MeshModifyNode->GetNodeReference(referenceRole.c_str());
+    QString referenceRole = inputNodeSelector->property("ReferenceRole").toString();
+    vtkMRMLNode* referenceNode = d->MeshModifyNode->GetNodeReference(referenceRole.toUtf8());
     bool wasBlocking = inputNodeSelector->blockSignals(true);
     inputNodeSelector->setCurrentNode(referenceNode);
     inputNodeSelector->blockSignals(wasBlocking);
@@ -244,12 +262,31 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
   QList< qMRMLNodeComboBox*> outputNodeSelectors = d->OutputNodesCollapsibleButton->findChildren<qMRMLNodeComboBox*>();
   for (qMRMLNodeComboBox* outputNodeSelector : outputNodeSelectors)
     {
-    std::string referenceRole = outputNodeSelector->property("ReferenceRole").toString().toStdString();
-    vtkMRMLNode* referenceNode = d->MeshModifyNode->GetNodeReference(referenceRole.c_str());
+    QString referenceRole = outputNodeSelector->property("ReferenceRole").toString();
+    vtkMRMLNode* referenceNode = d->MeshModifyNode->GetNodeReference(referenceRole.toUtf8());
     bool wasBlocking = outputNodeSelector->blockSignals(true);
     outputNodeSelector->setCurrentNode(referenceNode);
     outputNodeSelector->blockSignals(wasBlocking);
     }
+
+  if (d->MeshModifyNode->GetContinuousUpdate())
+    {
+    d->ApplyButton->setChecked(true);
+    d->ApplyButton->setCheckState(Qt::Checked);
+    }
+  else
+    {
+    d->ApplyButton->setChecked(false);
+    d->ApplyButton->setCheckState(Qt::Unchecked);
+    }
+
+  std::string ruleName;
+  if (d->MeshModifyNode->GetRuleName())
+    {
+    ruleName = d->MeshModifyNode->GetRuleName();
+    }
+  int ruleIndex = d->RuleComboBox->findData(ruleName.c_str());
+  d->RuleComboBox->setCurrentIndex(ruleIndex);
 }
 
 //-----------------------------------------------------------------------------
@@ -262,22 +299,39 @@ void qSlicerMeshModifyModuleWidget::updateMRMLFromWidget()
     }
 
   MRMLNodeModifyBlocker blocker(d->MeshModifyNode);
+
+  QString ruleName = d->RuleComboBox->currentData().toString();
+  d->MeshModifyNode->SetRuleName(ruleName.toUtf8());
+
+  vtkSlicerMeshModifyLogic* meshModifyLogic = vtkSlicerMeshModifyLogic::SafeDownCast(this->logic());
+  vtkSlicerMeshModifyRule* rule = nullptr;
+  if (meshModifyLogic && d->MeshModifyNode)
+    {
+    rule = meshModifyLogic->GetMeshModifyRule(d->MeshModifyNode);
+    }
+  if (!rule)
+    {
+    return;
+    }
+
   QList< qMRMLNodeComboBox*> inputNodeSelectors = d->InputNodesCollapsibleButton->findChildren<qMRMLNodeComboBox*>();
+  int i = 0; /// TODO: Get events without counting Nth input node?
   for (qMRMLNodeComboBox* inputNodeSelector : inputNodeSelectors)
     {
-    std::string referenceRole = inputNodeSelector->property("ReferenceRole").toString().toStdString();
-    QString currentNodeIDQString = inputNodeSelector->currentNodeID();
-    std::string currentNodeIDString = currentNodeIDQString.toStdString();
-    d->MeshModifyNode->SetNodeReferenceID(referenceRole.c_str(), currentNodeIDString.c_str());
+    QString referenceRole = inputNodeSelector->property("ReferenceRole").toString();
+    QString currentNodeID = inputNodeSelector->currentNodeID();
+    d->MeshModifyNode->SetAndObserveNodeReferenceID(referenceRole.toUtf8(), currentNodeID.toUtf8(), rule->GetNthInputNodeEvents(i));
+    ++i;
     }
 
   QList< qMRMLNodeComboBox*> outputNodeSelectors = d->OutputNodesCollapsibleButton->findChildren<qMRMLNodeComboBox*>();
   for (qMRMLNodeComboBox* outputNodeSelector : outputNodeSelectors)
     {
-    std::string referenceRole = outputNodeSelector->property("ReferenceRole").toString().toStdString();
-    QString currentNodeIDQString = outputNodeSelector->currentNodeID();
-    std::string currentNodeIDString = currentNodeIDQString.toStdString();
-    d->MeshModifyNode->SetNodeReferenceID(referenceRole.c_str(), currentNodeIDString.c_str());
+    QString referenceRole = outputNodeSelector->property("ReferenceRole").toString();
+    QString currentNodeID = outputNodeSelector->currentNodeID();
+    d->MeshModifyNode->SetNodeReferenceID(referenceRole.toUtf8(), currentNodeID.toUtf8());
   }
 
+  Qt::CheckState continuousUpdate = d->ApplyButton->checkState();
+  d->MeshModifyNode->SetContinuousUpdate(continuousUpdate == Qt::CheckState::Checked);
 }
