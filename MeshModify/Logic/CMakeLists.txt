@@ -12,6 +12,8 @@ set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.h
   vtkSlicer${MODULE_NAME}Rule.cxx
   vtkSlicer${MODULE_NAME}Rule.h
+  vtkSlicerFreeSurferParcellateRule.cxx
+  vtkSlicerFreeSurferParcellateRule.h
   vtkSlicerPlaneCutRule.cxx
   vtkSlicerPlaneCutRule.h
   vtkSlicer${MODULE_NAME}RuleFactory.cxx

@@ -94,8 +94,10 @@ void qSlicerMeshModifyModuleWidget::setup()
 
   connect(d->RuleComboBox, SIGNAL(currentIndexChanged(int)),
     this, SLOT(updateMRMLFromWidget()));
+  connect(d->ApplyButton, SIGNAL(checkStateChanged(Qt::CheckState)),
+    this, SLOT(onApplyButtonClicked()));
   connect(d->ApplyButton, SIGNAL(clicked()),
-    this, SLOT(updateMRMLFromWidget()));
+    this, SLOT(onApplyButtonClicked()));
 }
 
 //-----------------------------------------------------------------------------
@@ -277,7 +279,6 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
   else
     {
     d->ApplyButton->setChecked(false);
-    d->ApplyButton->setCheckState(Qt::Unchecked);
     }
 
   std::string ruleName;
@@ -332,6 +333,26 @@ void qSlicerMeshModifyModuleWidget::updateMRMLFromWidget()
     d->MeshModifyNode->SetNodeReferenceID(referenceRole.toUtf8(), currentNodeID.toUtf8());
   }
 
-  Qt::CheckState continuousUpdate = d->ApplyButton->checkState();
-  d->MeshModifyNode->SetContinuousUpdate(continuousUpdate == Qt::CheckState::Checked);
+  d->MeshModifyNode->SetContinuousUpdate(d->ApplyButton->isChecked());
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerMeshModifyModuleWidget::onApplyButtonClicked()
+{
+  Q_D(qSlicerMeshModifyModuleWidget);
+  if (!d->MeshModifyNode)
+    {
+    return;
+    }
+  this->updateMRMLFromWidget();
+
+  /// Checkbox is checked. Should be handled by continuous update in logic
+  if (d->ApplyButton->checkState() == Qt::Checked)
+    {
+    return;
+    }
+
+  /// Continuous update is off, trigger manual update.
+  vtkSlicerMeshModifyLogic* meshModifyLogic = vtkSlicerMeshModifyLogic::SafeDownCast(this->logic());
+  meshModifyLogic->RunMeshModifyRule(d->MeshModifyNode);
 }

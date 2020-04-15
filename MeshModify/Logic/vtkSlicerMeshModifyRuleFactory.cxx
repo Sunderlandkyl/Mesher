@@ -17,6 +17,7 @@ limitations under the License.
 // MeshModify includes
 #include "vtkSlicerMeshModifyRuleFactory.h"
 #include "vtkSlicerMeshModifyRule.h"
+#include "vtkSlicerFreeSurferParcellateRule.h"
 #include "vtkSlicerPlaneCutRule.h"
 
 // VTK includes
@@ -111,6 +112,7 @@ void vtkSlicerMeshModifyRuleFactory::classInitialize()
   vtkSlicerMeshModifyRuleFactoryInstance = vtkSlicerMeshModifyRuleFactory::GetInstance();
 
   vtkSlicerMeshModifyRuleFactoryInstance->RegisterMeshModifyRule(vtkSmartPointer<vtkSlicerPlaneCutRule>::New());
+  vtkSlicerMeshModifyRuleFactoryInstance->RegisterMeshModifyRule(vtkSmartPointer<vtkSlicerFreeSurferParcellateRule>::New());
 }
 
 //----------------------------------------------------------------------------
