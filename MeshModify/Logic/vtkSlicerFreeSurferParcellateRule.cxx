@@ -220,14 +220,34 @@ bool vtkSlicerFreeSurferParcellateRule::RunInternal(vtkMRMLMeshModifyNode* meshM
     vtkMath::MultiplyScalar(normal2_World, -1);
     }
   
+  vtkNew<vtkGeneralTransform> pialTransformToWorld;
+  if (pialModelNode->GetParentTransformNode())
+    {
+    pialModelNode->GetParentTransformNode()->GetTransformToWorld(pialTransformToWorld);
+    }
+  vtkNew<vtkTransformPolyDataFilter> pialModelToWorldTransform;
+  pialModelToWorldTransform->SetInputData(pialModelNode->GetMesh());
+  pialModelToWorldTransform->SetTransform(pialTransformToWorld);
+  pialModelToWorldTransform->Update();
+
+  vtkNew<vtkGeneralTransform> origTransformToWorld;
+  if (origModelNode->GetParentTransformNode())
+    {
+    origModelNode->GetParentTransformNode()->GetTransformToWorld(origTransformToWorld);
+    }
+  vtkNew<vtkTransformPolyDataFilter> origModelToWorldTransform;
+  origModelToWorldTransform->SetInputData(origModelNode->GetMesh());
+  origModelToWorldTransform->SetTransform(origTransformToWorld);
+  origModelToWorldTransform->Update();
+
   vtkNew<vtkPoints> model1Curve1Points;
   model1Curve1Points->DeepCopy(inputCurve1Node->GetCurvePointsWorld());
   vtkNew<vtkPoints> model1Curve2Points;
   model1Curve2Points->DeepCopy(inputCurve2Node->GetCurvePointsWorld());
   vtkNew<vtkPoints> model2Curve1Points;
-  this->ProjectCurveToSurface(model1Curve1Points, origModelNode->GetPolyData(), pialModelNode->GetPolyData(), model2Curve1Points);
+  this->ProjectCurveToSurface(model1Curve1Points, origModelToWorldTransform->GetOutput(), pialModelToWorldTransform->GetOutput(), model2Curve1Points);
   vtkNew<vtkPoints> model2Curve2Points;
-  this->ProjectCurveToSurface(model1Curve2Points, origModelNode->GetPolyData(), pialModelNode->GetPolyData(), model2Curve2Points);
+  this->ProjectCurveToSurface(model1Curve2Points, origModelToWorldTransform->GetOutput(), pialModelToWorldTransform->GetOutput(), model2Curve2Points);
   
   vtkNew<vtkPlane> plane1_World;
   plane1_World->SetNormal(normal1_World);
@@ -267,7 +287,7 @@ bool vtkSlicerFreeSurferParcellateRule::RunInternal(vtkMRMLMeshModifyNode* meshM
     }
 
   vtkNew<vtkClipPolyData> planeModel1Plane1Clip;
-  planeModel1Plane1Clip->SetInputData(origModelNode->GetMesh());
+  planeModel1Plane1Clip->SetInputData(origModelToWorldTransform->GetOutput());
   planeModel1Plane1Clip->SetClipFunction(plane1_World);
   vtkNew<vtkClipPolyData> planeModel1Plane2Clip;
   planeModel1Plane2Clip->SetInputConnection(planeModel1Plane1Clip->GetOutputPort());
@@ -279,7 +299,7 @@ bool vtkSlicerFreeSurferParcellateRule::RunInternal(vtkMRMLMeshModifyNode* meshM
   this->SetCurveClockwise(model1ClosedCurve);
 
   vtkNew<vtkClipPolyData> planeModel2Plane1Clip;
-  planeModel2Plane1Clip->SetInputData(pialModelNode->GetMesh());
+  planeModel2Plane1Clip->SetInputData(pialModelToWorldTransform->GetOutput());
   planeModel2Plane1Clip->SetClipFunction(plane1_World);
   vtkNew<vtkClipPolyData> planeModel2Plane2Clip;
   planeModel2Plane2Clip->SetInputConnection(planeModel2Plane1Clip->GetOutputPort());
@@ -309,10 +329,29 @@ bool vtkSlicerFreeSurferParcellateRule::RunInternal(vtkMRMLMeshModifyNode* meshM
   appendPolyDataFilter->Update();
 
   vtkNew<vtkPolyData> outputPolyData;
+  vtkNew<vtkIdList> line;
+  for (int i = 0; i < model1ClosedCurve->GetNumberOfPoints(); ++i)
+  {
+    line->InsertNextId(i);
+  }
+  vtkNew<vtkCellArray> lines;
+  lines->InsertNextCell(line);
+  //outputPolyData->SetPoints(model1ClosedCurve);
+  //outputPolyData->SetLines(lines);
   this->StitchEdges(appendPolyDataFilter->GetOutput(), model1ClosedCurve, model2ClosedCurve, outputPolyData);
 
+  vtkNew<vtkGeneralTransform> outputTransformFromWorld;
+  if (outputModelNode->GetParentTransformNode())
+    {
+    outputModelNode->GetParentTransformNode()->GetTransformFromWorld(outputTransformFromWorld);
+    }
+  vtkNew<vtkTransformPolyDataFilter> origModelFromWorldTransform;
+  origModelFromWorldTransform->SetInputData(outputPolyData);
+  origModelFromWorldTransform->SetTransform(outputTransformFromWorld);
+  origModelFromWorldTransform->Update();
+
   MRMLNodeModifyBlocker blocker(outputModelNode);
-  outputModelNode->SetAndObserveMesh(outputPolyData);
+  outputModelNode->SetAndObserveMesh(origModelFromWorldTransform->GetOutput());
   outputModelNode->InvokeCustomModifiedEvent(vtkMRMLModelNode::MeshModifiedEvent);
   
   return true;
