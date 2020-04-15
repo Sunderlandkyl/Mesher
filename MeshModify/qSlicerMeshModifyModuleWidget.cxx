@@ -239,6 +239,27 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
   this->updateInputSelectors();
   this->updateOutputSelectors();
 
+  int ruleIndex = 0;
+  if (!d->MeshModifyNode)
+    {
+    d->RuleComboBox->setEnabled(false);
+    }
+  else
+    {
+    std::string ruleName;
+    if (d->MeshModifyNode->GetRuleName())
+      {
+      ruleName = d->MeshModifyNode->GetRuleName();
+      }
+    ruleIndex = d->RuleComboBox->findData(ruleName.c_str());
+    d->RuleComboBox->setEnabled(true);
+    }
+
+  bool wasBlocking = d->RuleComboBox->blockSignals(true);
+  d->RuleComboBox->setCurrentIndex(ruleIndex);
+  d->RuleComboBox->blockSignals(wasBlocking);
+
+
   if (!rule)
     {
     d->InputNodesCollapsibleButton->setEnabled(false);
@@ -256,7 +277,7 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
     {
     QString referenceRole = inputNodeSelector->property("ReferenceRole").toString();
     vtkMRMLNode* referenceNode = d->MeshModifyNode->GetNodeReference(referenceRole.toUtf8());
-    bool wasBlocking = inputNodeSelector->blockSignals(true);
+    wasBlocking = inputNodeSelector->blockSignals(true);
     inputNodeSelector->setCurrentNode(referenceNode);
     inputNodeSelector->blockSignals(wasBlocking);
     }
@@ -266,7 +287,7 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
     {
     QString referenceRole = outputNodeSelector->property("ReferenceRole").toString();
     vtkMRMLNode* referenceNode = d->MeshModifyNode->GetNodeReference(referenceRole.toUtf8());
-    bool wasBlocking = outputNodeSelector->blockSignals(true);
+    wasBlocking = outputNodeSelector->blockSignals(true);
     outputNodeSelector->setCurrentNode(referenceNode);
     outputNodeSelector->blockSignals(wasBlocking);
     }
@@ -280,14 +301,6 @@ void qSlicerMeshModifyModuleWidget::updateWidgetFromMRML()
     {
     d->ApplyButton->setChecked(false);
     }
-
-  std::string ruleName;
-  if (d->MeshModifyNode->GetRuleName())
-    {
-    ruleName = d->MeshModifyNode->GetRuleName();
-    }
-  int ruleIndex = d->RuleComboBox->findData(ruleName.c_str());
-  d->RuleComboBox->setCurrentIndex(ruleIndex);
 }
 
 //-----------------------------------------------------------------------------

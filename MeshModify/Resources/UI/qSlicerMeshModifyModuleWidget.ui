@@ -30,6 +30,9 @@
          <string>vtkMRMLMeshModifyNode</string>
         </stringlist>
        </property>
+       <property name="renameEnabled">
+        <bool>true</bool>
+       </property>
       </widget>
      </item>
      <item row="1" column="0">
