@@ -466,16 +466,16 @@ void vtkSlicerFreeSurferParcellateRule::StitchEdges(vtkPolyData* inputPolyData, 
   vtkIdType curve2CurrentId = curve2StartId;
   bool curve1Initialized = false;
   bool curve2Initialized = false;
-  for (int i = 0; i < inputCurve1->GetNumberOfPoints() + inputCurve2->GetNumberOfPoints(); ++i)
+  for (int i = 0; i < inputCurve1->GetNumberOfPoints() + inputCurve2->GetNumberOfPoints() - 2; ++i)
     {
     vtkIdType curve1NextId = curve1CurrentId + 1;
-    if (curve1NextId > inputCurve1->GetNumberOfPoints())
+    if (curve1NextId >= inputCurve1->GetNumberOfPoints() - 1)
       {
       curve1NextId = 0;
       }
 
     vtkIdType curve2NextId = curve2CurrentId + 1;
-    if (curve2NextId > inputCurve2->GetNumberOfPoints())
+    if (curve2NextId >= inputCurve2->GetNumberOfPoints() - 1)
       {
       curve2NextId = 0;
       }
@@ -527,11 +527,6 @@ void vtkSlicerFreeSurferParcellateRule::StitchEdges(vtkPolyData* inputPolyData, 
     triangle1->InsertNextId(curve2Point);
     triangle1->InsertNextId(connectingPointId);
     polys->InsertNextCell(triangle1);
-    //vtkNew<vtkIdList> triangle2;
-    //triangle2->InsertNextId(p1B);
-    //triangle2->InsertNextId(p2B);
-    //triangle2->InsertNextId(p2A);
-    //polys->InsertNextCell(triangle2);
     }
   outputPolyData->SetPolys(polys);
 }
