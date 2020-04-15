@@ -378,6 +378,28 @@ void vtkSlicerFreeSurferParcellateRule::CombineCurves(vtkPoints* inputCurve1, vt
   locator->SetDataSet(inputModel);
   locator->BuildLocator();
 
+  double curve1StartPoint[3] = { 0.0 };
+  inputCurve1->GetPoint(0, curve1StartPoint);
+
+  double curve1EndPoint[3] = { 0.0 };
+  inputCurve1->GetPoint(inputCurve1->GetNumberOfPoints() - 1, curve1EndPoint);
+
+  double curve2StartPoint[3] = { 0.0 };
+  inputCurve2->GetPoint(0, curve2StartPoint);
+
+  double curve2EndPoint[3] = { 0.0 };
+  inputCurve2->GetPoint(inputCurve2->GetNumberOfPoints() - 1, curve2EndPoint);
+
+  vtkNew<vtkPoints> reversedInputCurve2;
+  if (vtkMath::Distance2BetweenPoints(curve1EndPoint, curve2EndPoint) < vtkMath::Distance2BetweenPoints(curve1EndPoint, curve1StartPoint))
+    {
+    for (int i = inputCurve2->GetNumberOfPoints() - 1; i > 0; --i)
+      {
+      reversedInputCurve2->InsertNextPoint(inputCurve2->GetPoint(i));
+      }
+    inputCurve2 = reversedInputCurve2;
+    }
+
   vtkNew<vtkPoints> outputPoints;
   for (int i = 0; i < inputCurve1->GetNumberOfPoints(); ++i)
     {
@@ -385,11 +407,11 @@ void vtkSlicerFreeSurferParcellateRule::CombineCurves(vtkPoints* inputCurve1, vt
     }
 
   vtkIdType point1IdEnd = locator->FindClosestPoint(inputCurve1->GetPoint(inputCurve1->GetNumberOfPoints() - 1));
-  vtkIdType point2IdEnd = locator->FindClosestPoint(inputCurve2->GetPoint(inputCurve2->GetNumberOfPoints() - 1));
+  vtkIdType point2IdStart = locator->FindClosestPoint(inputCurve2->GetPoint(0));
 
   vtkNew<vtkDijkstraGraphGeodesicPath> dijkstra1;
   dijkstra1->SetInputData(inputModel);
-  dijkstra1->SetStartVertex(point2IdEnd);
+  dijkstra1->SetStartVertex(point2IdStart);
   dijkstra1->SetEndVertex(point1IdEnd);
   dijkstra1->Update();
   vtkPolyData* dijkstraPath1 = dijkstra1->GetOutput();
@@ -398,18 +420,18 @@ void vtkSlicerFreeSurferParcellateRule::CombineCurves(vtkPoints* inputCurve1, vt
     outputPoints->InsertNextPoint(dijkstraPath1->GetPoint(i));
     }
 
-  for (int i = inputCurve2->GetNumberOfPoints() - 1; i > 0; --i)
+  for (int i = 0; i < inputCurve2->GetNumberOfPoints(); ++i)
     {
     outputPoints->InsertNextPoint(inputCurve2->GetPoint(i));
     }
 
-  vtkIdType point1IdStart = locator->FindClosestPoint(inputCurve2->GetPoint(0));
-  vtkIdType point2IdStart = locator->FindClosestPoint(inputCurve1->GetPoint(0));
+  vtkIdType point1IdStart = locator->FindClosestPoint(inputCurve1->GetPoint(0));
+  vtkIdType point2IdEnd = locator->FindClosestPoint(inputCurve2->GetPoint(inputCurve2->GetNumberOfPoints() - 1));
 
   vtkNew<vtkDijkstraGraphGeodesicPath> dijkstra2;
   dijkstra2->SetInputData(inputModel);
-  dijkstra2->SetStartVertex(point2IdStart);
-  dijkstra2->SetEndVertex(point1IdStart);
+  dijkstra2->SetStartVertex(point1IdStart);
+  dijkstra2->SetEndVertex(point2IdEnd);
   dijkstra2->Update();
   vtkPolyData* dijkstraPath2 = dijkstra2->GetOutput();
   for (int i = 0; i < dijkstraPath2->GetNumberOfPoints(); ++i)
